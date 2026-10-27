@@ -30,6 +30,8 @@ the `METRICS_OTLP_*`/`METRICS_PROMETHEUS_*` knobs):
   check; `kind="accepted"` is the weaker transport-only fallback that runs when login/WS itself
   is down. A transport's own check failing sets this to 0; it only goes *absent* if login/WS died
   upstream and this check was never reached this cycle - alert on "absent OR 0", not just "0".
+  `kind="rpc"` is the opt-in RPC round trip: it's only checked once the transport check passes, and
+  goes absent while the transport check is failing.
 - `probe_duration_ms{...,action}` — per-stage latency (`request`, `ws_update`, `connect`,
   `subscribe`). Disappears (not stale) once its stage stops running or passing.
 

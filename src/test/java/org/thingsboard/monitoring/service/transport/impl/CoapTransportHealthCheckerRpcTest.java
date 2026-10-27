@@ -148,13 +148,16 @@ class CoapTransportHealthCheckerRpcTest {
         enableRpc();
 
         checker.initClient();
+        checker.initRpc();
 
         verify(mockRpcCoapClient).observe(any(CoapHandler.class));
         assertThat(checker.rpcObserveRelation).isSameAs(mockObserveRelation);
     }
 
     @Test
-    void initClientSkipsObserveWhenRpcDisabled() throws Exception {
+    void initClientDoesNotObserveEvenWhenRpcEnabled() throws Exception {
+        enableRpc();
+
         checker.initClient();
 
         verify(mockRpcCoapClient, never()).observe(any(CoapHandler.class));
@@ -165,7 +168,9 @@ class CoapTransportHealthCheckerRpcTest {
         enableRpc();
 
         checker.initClient();
+        checker.initRpc();
         checker.initClient();
+        checker.initRpc();
 
         verify(mockRpcCoapClient, org.mockito.Mockito.times(1)).observe(any(CoapHandler.class));
     }
@@ -174,6 +179,7 @@ class CoapTransportHealthCheckerRpcTest {
     void destroyClientCancelsObserveAndShutsDownRpcClient() throws Exception {
         enableRpc();
         checker.initClient();
+        checker.initRpc();
 
         checker.destroyClient();
 

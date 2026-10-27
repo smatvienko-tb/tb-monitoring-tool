@@ -148,6 +148,7 @@ class HttpTransportHealthCheckerRpcTest {
                 .thenReturn(new ResponseEntity<>(null, HttpStatus.OK));
 
         checker.initClient();
+        checker.initRpc();
         try {
             verify(restTemplate, timeout(2000).atLeastOnce())
                     .getForEntity(contains("/rpc?timeout="), eq(JsonNode.class));
@@ -157,7 +158,9 @@ class HttpTransportHealthCheckerRpcTest {
     }
 
     @Test
-    void initClientDoesNotStartPollingWhenRpcDisabled() throws Exception {
+    void initClientDoesNotStartPollingEvenWhenRpcEnabled() throws Exception {
+        enableRpc();
+
         checker.initClient();
 
         // Mockito#after waits for the window then asserts no invocation occurred —
@@ -174,8 +177,10 @@ class HttpTransportHealthCheckerRpcTest {
                 .thenReturn(new ResponseEntity<>(null, HttpStatus.OK));
 
         checker.initClient();
+        checker.initRpc();
         Future<?> first = (Future<?>) ReflectionTestUtils.getField(checker, "rpcPollFuture");
         checker.initClient();
+        checker.initRpc();
         Future<?> second = (Future<?>) ReflectionTestUtils.getField(checker, "rpcPollFuture");
 
         assertThat(second).isSameAs(first);
@@ -189,6 +194,7 @@ class HttpTransportHealthCheckerRpcTest {
                 .thenReturn(new ResponseEntity<>(null, HttpStatus.OK));
 
         checker.initClient();
+        checker.initRpc();
         verify(restTemplate, timeout(2000).atLeastOnce())
                 .getForEntity(contains("/rpc?timeout="), eq(JsonNode.class));
 
@@ -210,6 +216,7 @@ class HttpTransportHealthCheckerRpcTest {
                 .thenReturn(new ResponseEntity<>(null, HttpStatus.OK));
 
         checker.initClient();
+        checker.initRpc();
         try {
             Future<?> first = (Future<?>) ReflectionTestUtils.getField(checker, "rpcPollFuture");
             assertThat(first).isNotNull();
@@ -218,6 +225,7 @@ class HttpTransportHealthCheckerRpcTest {
                     .getForEntity(contains("/rpc?timeout="), eq(JsonNode.class));
 
             checker.initClient();
+            checker.initRpc();
 
             Future<?> second = (Future<?>) ReflectionTestUtils.getField(checker, "rpcPollFuture");
             assertThat(second).isNotNull().isNotSameAs(first);
@@ -300,6 +308,7 @@ class HttpTransportHealthCheckerRpcTest {
                 .thenReturn(new ResponseEntity<>(null, HttpStatus.OK));
 
         checker.initClient();
+        checker.initRpc();
         try {
             verify(restTemplate, timeout(5000).atLeast(3))
                     .getForEntity(contains("/rpc?timeout="), eq(JsonNode.class));

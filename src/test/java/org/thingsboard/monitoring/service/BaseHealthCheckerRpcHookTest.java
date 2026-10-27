@@ -33,6 +33,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -105,6 +106,30 @@ class BaseHealthCheckerRpcHookTest {
         verify(reporter, never()).serviceIsOk(RPC_INFO);
         verify(reporter).serviceIsOk(INFO);
         verify(probeMetricsRecorder).recordProbe(INFO, true);
+        verify(probeMetricsRecorder).recordProbe(RPC_INFO, false);
+    }
+
+    @Test
+    void rpcInitFailureIsReportedUnderRpcKeyAndLeavesTransportOk() {
+        checker.rpcInitFailure = new IOException("subscribe failed");
+
+        checker.check(wsClient);
+
+        assertThat(checker.rpcCheckCalled).isFalse();
+        verify(reporter).serviceFailure(eq(RPC_INFO), any(Throwable.class));
+        verify(reporter).serviceIsOk(INFO);
+        verify(probeMetricsRecorder).recordProbe(INFO, true);
+        verify(probeMetricsRecorder).recordProbe(RPC_INFO, false);
+    }
+
+    @Test
+    void rpcProbeIsRecordedOnSuccessAndRemovedWhenTelemetryFails() {
+        checker.check(wsClient);
+        verify(probeMetricsRecorder).recordProbe(RPC_INFO, true);
+
+        checker.failTelemetry = true;
+        checker.check(wsClient);
+        verify(probeMetricsRecorder).removeProbe(RPC_INFO, ProbeMetricsRecorder.Removal.STALE_THIS_CYCLE);
     }
 
     @Test
@@ -114,7 +139,9 @@ class BaseHealthCheckerRpcHookTest {
         checker.check(wsClient);
 
         assertThat(checker.rpcCheckCalled).isFalse();
+        assertThat(checker.rpcInitCalled).isFalse();
         verify(reporter).serviceIsOk(INFO);
+        verify(probeMetricsRecorder, never()).recordProbe(eq(RPC_INFO), anyBoolean());
     }
 
     private static final class TestConfig implements MonitoringConfig<TestTarget> {
@@ -143,6 +170,8 @@ class BaseHealthCheckerRpcHookTest {
         boolean rpcCheckCalled;
         Object rpcInfo = RPC_INFO;
         Throwable rpcFailure;
+        Exception rpcInitFailure;
+        boolean rpcInitCalled;
 
         TestChecker(TestConfig config, TestTarget target) {
             super(config, target);
@@ -166,6 +195,14 @@ class BaseHealthCheckerRpcHookTest {
         protected void sendTestPayload(String payload) throws Exception {
             if (failTelemetry) {
                 throw new IOException("telemetry publish failed");
+            }
+        }
+
+        @Override
+        protected void initRpc() throws Exception {
+            rpcInitCalled = true;
+            if (rpcInitFailure != null) {
+                throw rpcInitFailure;
             }
         }
 

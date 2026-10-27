@@ -104,8 +104,12 @@ public abstract class BaseHealthChecker<C extends MonitoringConfig, T extends Mo
         }
         // only once the uplink is proven, and under its own key, so RPC alerts and recovers independently
         Object rpcInfo = getRpcInfo();
-        if (success && rpcInfo != null) {
-            checkRpc(rpcInfo);
+        if (rpcInfo != null) {
+            if (success) {
+                checkRpc(rpcInfo);
+            } else {
+                probeMetricsRecorder.removeProbe(rpcInfo, ProbeMetricsRecorder.Removal.STALE_THIS_CYCLE);
+            }
         }
 
         associates.values().forEach(healthChecker -> {
@@ -147,13 +151,18 @@ public abstract class BaseHealthChecker<C extends MonitoringConfig, T extends Mo
     }
 
     private void checkRpc(Object rpcInfo) {
+        boolean rpcSuccess = false;
         try {
+            initRpc();
             doRpcCheck();
             reporter.serviceIsOk(rpcInfo);
+            rpcSuccess = true;
         } catch (ServiceFailureException e) {
             reporter.serviceFailure(e.getServiceKey(), e);
         } catch (Exception e) {
             reporter.serviceFailure(rpcInfo, e);
+        } finally {
+            probeMetricsRecorder.recordProbe(rpcInfo, rpcSuccess);
         }
     }
 
@@ -242,6 +251,10 @@ public abstract class BaseHealthChecker<C extends MonitoringConfig, T extends Mo
     // null when the RPC sub-check is disabled
     protected Object getRpcInfo() {
         return null;
+    }
+
+    // RPC-side client setup, kept out of initClient() so its failures are reported under the RPC key
+    protected void initRpc() throws Exception {
     }
 
     protected void doRpcCheck() throws Exception {

@@ -58,7 +58,11 @@ public class MqttTransportHealthChecker extends TransportHealthChecker<MqttTrans
             log.debug("Initialized MQTT client for URI {}", mqttClient.getServerURI());
             rpcSubscribed = false;
         }
-        if (target.isRpcEnabled() && !rpcSubscribed) {
+    }
+
+    @Override
+    protected void initRpc() throws Exception {
+        if (!rpcSubscribed) {
             mqttClient.subscribe(DEVICE_RPC_REQUEST_SUB_TOPIC, config.getQos(), this::echoRpcRequest);
             rpcSubscribed = true;
             log.debug("Subscribed for RPC requests on {}", DEVICE_RPC_REQUEST_SUB_TOPIC);
