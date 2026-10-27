@@ -81,7 +81,11 @@ public class HttpTransportHealthChecker extends TransportHealthChecker<HttpTrans
             restTemplate = RestTemplateUtils.build(config.getRequestTimeoutMs());
             log.debug("Initialized HTTP client");
         }
-        if (target.isRpcEnabled() && (rpcPollFuture == null || rpcPollFuture.isDone())) {
+    }
+
+    @Override
+    protected void initRpc() {
+        if (rpcPollFuture == null || rpcPollFuture.isDone()) {
             if (rpcRestTemplate == null) {
                 rpcRestTemplate = new RestTemplateBuilder()
                         .connectTimeout(Duration.ofMillis(config.getRequestTimeoutMs()))

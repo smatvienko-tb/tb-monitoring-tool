@@ -64,7 +64,11 @@ public class CoapTransportHealthChecker extends TransportHealthChecker<CoapTrans
             coapClient.setTimeout((long) config.getRequestTimeoutMs());
             log.debug("Initialized CoAP client for URI {}", uri);
         }
-        if (target.isRpcEnabled() && rpcObserveRelation == null) {
+    }
+
+    @Override
+    protected void initRpc() {
+        if (rpcObserveRelation == null) {
             String accessToken = target.getDevice().getCredentials().getCredentialsId();
             String rpcUri = target.getBaseUrl() + "/api/v1/" + accessToken + "/rpc";
             if (rpcCoapClient == null) {

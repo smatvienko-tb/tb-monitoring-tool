@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -157,15 +159,32 @@ class MqttTransportHealthCheckerRpcTest {
         enableRpc();
 
         checker.initClient();
+        checker.initRpc();
 
         verify(mqttClient).subscribe(eq("v1/devices/me/rpc/request/+"), eq(1), any(IMqttMessageListener.class));
     }
 
     @Test
-    void initClientSkipsSubscriptionWhenRpcDisabled() throws Exception {
+    void initClientDoesNotSubscribeEvenWhenRpcEnabled() throws Exception {
+        enableRpc();
+
         checker.initClient();
 
         verify(mqttClient, never()).subscribe(anyString(), anyInt(), any(IMqttMessageListener.class));
+    }
+
+    @Test
+    void initRpcRetriesSubscriptionAfterSubscribeFails() throws Exception {
+        enableRpc();
+        doThrow(new MqttException(MqttException.REASON_CODE_CLIENT_TIMEOUT)).doNothing()
+                .when(mqttClient).subscribe(anyString(), anyInt(), any(IMqttMessageListener.class));
+
+        checker.initClient();
+        assertThatThrownBy(() -> checker.initRpc()).isInstanceOf(MqttException.class);
+        checker.initRpc();
+
+        verify(mqttClient, org.mockito.Mockito.times(2))
+                .subscribe(eq("v1/devices/me/rpc/request/+"), eq(1), any(IMqttMessageListener.class));
     }
 
     @Test
@@ -173,7 +192,9 @@ class MqttTransportHealthCheckerRpcTest {
         enableRpc();
 
         checker.initClient();
+        checker.initRpc();
         checker.initClient();
+        checker.initRpc();
 
         verify(mqttClient, org.mockito.Mockito.times(1))
                 .subscribe(eq("v1/devices/me/rpc/request/+"), eq(1), any(IMqttMessageListener.class));
